@@ -5,19 +5,20 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 public class MovieMaps {
 
     public static void printDirectorMinutes(List<Movie> movies, String name) {
-        // TODO
-        // Metoda vypíše celkovou délku všech filmů od režiséra jménem "name".
-        // Délka filmu je součet minut všech jeho scén.
+        int totalMinutes = movies.stream()
+                .filter(m -> m.getDirector().equals(name))
+                .mapToInt(Movie::getTotalMinutes)
+                .sum();
+        System.out.println("Celkova delka vsech filmu od rezisera " + name + ": " + totalMinutes + " minut");
     }
 
     public static void main(String[] args) throws IOException {
-        // Dodělejte třídu Movie a Scene (gettery, settery, constructor, toString + co uznáte za vhodné)
-        // Načtěte soubory movies.csv a scenes.csv
-
         List<Movie> movies = Files.lines(Paths.get("data/movies.csv"))
                 .skip(1)
                 .map(line -> line.split(",", 3))
@@ -36,10 +37,38 @@ public class MovieMaps {
                         Integer.parseInt(split[3])
                 )).toList();
 
-        // TODO: Propojte scény s filmy podle movieId.
+        // Propojte scény s filmy podle movieId.
+        Map<Integer, List<Scene>> scenesByMovie = scenes.stream()
+                .collect(Collectors.groupingBy(Scene::getMovieId));
+
+        movies.forEach(movie ->
+                movie.setScenes(scenesByMovie.getOrDefault(movie.getMovieId(), new ArrayList<>()))
+        );
+
         // Implementujte metodu printDirectorMinutes.
+        System.out.println("--- Delka filmu vybraneho rezisera ---");
+        // Testovaci volani (jmeno muzete zmenit podle realnych dat)
+        printDirectorMinutes(movies, "Christopher Nolan");
+        System.out.println();
+
         // Vypište, kolik filmů natočil každý režisér.
+        System.out.println("--- Pocet filmu, ktere natocil kazdy reziser ---");
+        Map<String, Long> moviesPerDirector = movies.stream()
+                .collect(Collectors.groupingBy(Movie::getDirector, Collectors.counting()));
+        moviesPerDirector.forEach((director, count) ->
+                System.out.println(director + ": " + count)
+        );
+        System.out.println();
+
         // Vypište top 5 režisérů dle celkové délky jejich filmů v minutách.
+        System.out.println("--- Top 5 reziseru dle celkove delky jejich filmu v minutach ---");
+        Map<String, Integer> minutesPerDirector = movies.stream()
+                .collect(Collectors.groupingBy(Movie::getDirector, Collectors.summingInt(Movie::getTotalMinutes)));
+
+        minutesPerDirector.entrySet().stream()
+                .sorted(Map.Entry.<String, Integer>comparingByValue().reversed())
+                .limit(5)
+                .forEach(entry -> System.out.println(entry.getKey() + ": " + entry.getValue() + " minut"));
     }
 }
 
@@ -49,8 +78,15 @@ class Movie {
     private String director;
     private List<Scene> scenes = new ArrayList<>();
 
+    public Movie(int movieId, String title, String director) {
+        this.movieId = movieId;
+        this.title = title;
+        this.director = director;
+        this.scenes = new ArrayList<>();
+    }
+
     public int getTotalMinutes() {
-        // TODO
+        return scenes.stream().mapToInt(Scene::getDurationMinutes).sum();
     }
 
     public int getMovieId() {
@@ -85,11 +121,14 @@ class Movie {
         this.scenes = scenes;
     }
 
-    public Movie(int movieId, String title, String director) {
-        this.movieId = movieId;
-        this.title = title;
-        this.director = director;
-        this.scenes = new ArrayList<>();
+    @Override
+    public String toString() {
+        return "Movie{" +
+                "movieId=" + movieId +
+                ", title='" + title + '\'' +
+                ", director='" + director + '\'' +
+                ", totalMinutes=" + getTotalMinutes() +
+                '}';
     }
 }
 
@@ -126,5 +165,14 @@ class Scene {
 
     public void setDurationMinutes(int durationMinutes) {
         this.durationMinutes = durationMinutes;
+    }
+
+    @Override
+    public String toString() {
+        return "Scene{" +
+                "movieId=" + movieId +
+                ", title='" + title + '\'' +
+                ", durationMinutes=" + durationMinutes +
+                '}';
     }
 }
